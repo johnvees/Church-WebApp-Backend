@@ -23,10 +23,24 @@ connectDB();
 const app = express();
 
 app.use(helmet());
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL || '*'],
-  credentials: true,
-}));
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  }),
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));
@@ -44,15 +58,35 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/about', aboutRoutes);
 
-app.get('/api/health', (req, res) => res.json({ success: true, message: 'Ekklesia API is running 🙏' }));
-app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} tidak ditemukan` }));
+// Seed route — only active when SEED_KEY env var is set
+if (process.env.SEED_KEY) {
+  app.use('/api/seed', require('./routes/seed'));
+}
+
+app.get('/api/health', (req, res) =>
+  res.json({
+    success: true,
+    message: 'Ekklesia API is running',
+    env: process.env.NODE_ENV,
+  }),
+);
+
+app.use((req, res) =>
+  res.status(404).json({
+    success: false,
+    message: 'Route tidak ditemukan',
+  }),
+);
+
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 Server berjalan di port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-  console.log(`💚 Health: http://localhost:${PORT}/api/health\n`);
-});
+// Only listen locally — Vercel handles this in production
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log('\nServer running on port', PORT);
+    console.log('Health: http://localhost:' + PORT + '/api/health\n');
+  });
+}
 
 module.exports = app;

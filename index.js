@@ -30,16 +30,14 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-  }),
-);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -58,29 +56,25 @@ app.use('/api/articles', articleRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/about', aboutRoutes);
 
-// Seed route — only active when SEED_KEY env var is set
+// Seed route — only active when SEED_KEY env var is set, remove after first use
 if (process.env.SEED_KEY) {
   app.use('/api/seed', require('./routes/seed'));
 }
 
-app.get('/api/health', (req, res) =>
-  res.json({
-    success: true,
-    message: 'Ekklesia API is running',
-    env: process.env.NODE_ENV,
-  }),
-);
+app.get('/api/health', (req, res) => res.json({
+  success: true,
+  message: 'Ekklesia API is running',
+  env: process.env.NODE_ENV,
+}));
 
-app.use((req, res) =>
-  res.status(404).json({
-    success: false,
-    message: 'Route tidak ditemukan',
-  }),
-);
+app.use((req, res) => res.status(404).json({
+  success: false,
+  message: 'Route tidak ditemukan',
+}));
 
 app.use(errorHandler);
 
-// Only listen locally — Vercel handles this in production
+// Only listen locally — Vercel handles listening in production
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {

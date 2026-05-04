@@ -16,11 +16,10 @@ router.get('/', async (req, res) => {
   const skip = (page - 1) * limit;
 
   const total = await Gallery.countDocuments(filter);
-  const galleries = await Gallery.find(filter)
+  const galleries = await Gallery.find(filter, { photos: { $slice: 4 } })
     .sort({ eventDate: -1 })
     .skip(skip)
     .limit(limit)
-    .select('-photos'); // Don't return all photos in list view
 
   res.status(200).json({
     success: true,

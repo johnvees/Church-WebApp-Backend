@@ -49,6 +49,41 @@ router.get('/admin/all', protect, async (req, res) => {
   res.status(200).json({ success: true, count: galleries.length, data: galleries });
 });
 
+// @route   GET /api/gallery/admin/sign-upload
+// @desc    Return a signed Cloudinary upload signature so the frontend can upload directly
+// @access  Admin
+router.get('/admin/sign-upload', protect, authorize('admin'), (req, res) => {
+  const timestamp = Math.round(Date.now() / 1000);
+  const params = { folder: 'ekklesia', timestamp };
+  const signature = cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET);
+  res.json({
+    success: true,
+    signature,
+    timestamp,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    folder: 'ekklesia',
+  });
+});
+
+// @route   POST /api/gallery/:id/photos/batch
+// @desc    Save photos uploaded directly to Cloudinary (array of {url, publicId})
+// @access  Admin
+router.post('/:id/photos/batch', protect, authorize('admin'), async (req, res) => {
+  const gallery = await Gallery.findById(req.params.id);
+  if (!gallery) return res.status(404).json({ success: false, message: 'Album tidak ditemukan' });
+
+  const { photos } = req.body;
+  if (!photos?.length) return res.status(400).json({ success: false, message: 'No photos provided' });
+
+  const newPhotos = photos.map(p => ({ url: p.url, publicId: p.publicId, caption_id: '', caption_en: '' }));
+  gallery.photos.push(...newPhotos);
+  if (!gallery.coverImage) gallery.coverImage = newPhotos[0].url;
+  await gallery.save();
+
+  res.json({ success: true, data: gallery });
+});
+
 // @route   POST /api/gallery
 // @desc    Create gallery album
 // @access  Admin
